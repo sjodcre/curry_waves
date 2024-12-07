@@ -9,6 +9,7 @@ import { TagType } from '@/lib/ProfileUtils';
 import { useArweaveProvider } from '@/context/ProfileContext';
 import { connect as aoConnect, createDataItemSigner } from '@permaweb/aoconnect';
 import { GATEWAYS, getGQLData } from '@/lib/utils';
+import { Progress } from "@/components/ui/progress";
 
 interface Video {
   id: string;
@@ -54,6 +55,8 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
   const arProvider = useArweaveProvider();
   const [postDescription, setPostDescription] = useState("");
   const [postTitle, setPostTitle] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const hasLargeVideo = video?.size && video.size > 5 * 1024 * 1024; // 5MB in bytes
 
@@ -77,12 +80,15 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
   });
 
   const uploadToArweave = async () => {
+    setIsUploading(true);
+    setUploadProgress(0);
     const aos = aoConnect();
 
     if (!video) {
       toast({
         description: "No video to upload!"
       });
+      setIsUploading(false);
       return;
     }
     
@@ -110,6 +116,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
             let contentType = video.file.type;
             console.log("contentType", contentType);
             try {
+                setUploadProgress(20);
                 const assetTags: TagType[] = [
                     { name: 'Content-Type', value: contentType },
                     { name: 'Creator', value: arProvider?.profile?.id || "ANON" },
@@ -130,6 +137,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                     { name: 'Payment-Address', value: 'dMAl8ZjkibRhma_rN8pDYiBW1DeWhvKYcBfqUfu-VhA' }
                 ];
                 const buffer: any = await fileToBuffer(video.file);
+                setUploadProgress(40);
                 let processSrc = null;
                 try {
                     const processSrcFetch = await fetch("https://arweave.net/6-Km3rEooyc0lS4_mr9pksnJZNCHxb0XcsI7pSCE-yY");
@@ -149,6 +157,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                     processSrc = processSrc.replaceAll('<COLLECTION>', "");
                 }
 
+                setUploadProgress(60);
                 let processId: string | undefined = undefined;
                 let retryCount = 0;
                 const maxSpawnRetries = 25;
@@ -178,6 +187,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                     throw new Error("Failed to get valid process ID");
                 }
 
+                setUploadProgress(80);
                 let fetchedAssetId: string | undefined = undefined;
                 retryCount = 0;
                 const maxFetchRetries = 100;
@@ -246,6 +256,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
         reader.readAsArrayBuffer(video.file);
       });
 
+        setUploadProgress(100);
         console.log('Images uploaded successfully:', videoTxIds[0].txid);
         toast({
           description: "Uploaded to Arweave!",
@@ -256,6 +267,12 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
 
     } catch (error) {
       console.error('Error uploading video:', error);
+      toast({
+        description: "Error uploading video",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -298,14 +315,21 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
       {hasLargeVideo && (
         <p className="text-red-500 mt-2">Cannot upload videos larger than 5MB</p>
       )}
+      {isUploading && (
+        <div className="mt-4">
+          <Progress value={uploadProgress} className="w-full" />
+          <p className="text-sm text-center mt-2">Uploading... {uploadProgress}%</p>
+        </div>
+      )}
       <div className="flex gap-4 mt-4">
         <Button
           type="submit"
           onClick={uploadToArweave}
-          disabled={hasLargeVideo || !postTitle || !postDescription}
-        >Upload
+          disabled={hasLargeVideo || !postTitle || !postDescription || isUploading}
+        >
+          {isUploading ? 'Uploading...' : 'Upload'}
         </Button>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} disabled={isUploading}>
           Cancel
         </Button>
       </div>

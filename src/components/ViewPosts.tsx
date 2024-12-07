@@ -66,6 +66,7 @@ import MediaDisplay from "./MediaDisplay";
 export interface Post {
   Title: string;
   Author: string;
+  AuthorWallet: string;
   AutoID: number;
   PID: string; // Optional because it may not be present in every case
   ID: string;
@@ -139,7 +140,7 @@ const ViewPosts = () => {
 
         }));
       });
-      // console.log("fetched posts with likes: ", parsedPosts[0]);
+      console.log("fetched posts with likes: ", parsedPosts[0]);
       setPosts(parsedPosts[0]);
 
       //   console.log("fetched posts with likes successfully", fetchPostsResult);
@@ -308,9 +309,12 @@ const ViewPosts = () => {
     //   });
     //   return;
     // }
+    toast({
+      description: "Storing on AO...",
+    });
     try {
-      console.log("postTitle: ", title);
-      console.log("postDescription: ", description);
+      // console.log("postTitle: ", title);
+      // console.log("postDescription: ", description);
       const res = await message({
         process: processId,
         tags: [
@@ -675,10 +679,12 @@ const ViewPosts = () => {
     );
   };
 
-  const handleSendTip = async () => {
+  const handleSendTip = async (post: Post) => {
+    if (!arProvider.profile) return;
     try {
     //   await transferAR(api);
-    await transferAR(api, toast); // Pass the toast function
+    console.log("post author: ", post.AuthorWallet);
+    await transferAR(api, toast, arProvider.profile.walletAddress, post.AuthorWallet); // Pass the toast function
 
     } catch (error: any) {
       console.error("Error sending tip:", error);
@@ -945,7 +951,7 @@ const ViewPosts = () => {
                                 </span>
                                 <span
                                   className="cursor-pointer text-green-500"
-                                  onClick={handleSendTip}
+                                  onClick={() => handleSendTip(post)}
                                   title="Tip"
                                 >
                                   <BadgeDollarSign size={20} />
