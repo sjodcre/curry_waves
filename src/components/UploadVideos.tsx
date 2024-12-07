@@ -42,7 +42,7 @@ export function cleanProcessField(value: string) {
 }
 
 interface UploadVideosProps {
-  onUpload: (videoTxId: string | null) => void;
+  onUpload: (videoTxId: string | null, title: string, description: string) => void;
   onCancel: () => void;
   api: any;
 }
@@ -52,6 +52,8 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
   const { connect: connectWallet } = useConnection();
   const activeAddress = useActiveAddress();
   const arProvider = useArweaveProvider();
+  const [postDescription, setPostDescription] = useState("");
+  const [postTitle, setPostTitle] = useState("");
 
   const hasLargeVideo = video?.size && video.size > 5 * 1024 * 1024; // 5MB in bytes
 
@@ -104,8 +106,6 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
           const data = event.target?.result;
           if (data) {
             const dateTime = new Date().getTime().toString();
-            const title = "hardcode title";
-            const description = "hardcode description";
             const balance = 1;
             let contentType = video.file.type;
             console.log("contentType", contentType);
@@ -113,8 +113,8 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                 const assetTags: TagType[] = [
                     { name: 'Content-Type', value: contentType },
                     { name: 'Creator', value: arProvider?.profile?.id || "ANON" },
-                    { name: 'Title', value: title },
-                    { name: 'Description', value: description }, 
+                    { name: 'Title', value: postTitle },
+                    { name: 'Description', value: postDescription }, 
                     { name: 'Type', value: contentType },
                     { name: 'Implements', value: 'ANS-110' },
                     { name: 'Date-Created', value: dateTime },
@@ -142,7 +142,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
 
                 if (processSrc) {
                     processSrc = processSrc.replaceAll('<CREATOR>', arProvider?.profile?.id || "ANON");
-                    processSrc = processSrc.replaceAll(`'<NAME>'`, cleanProcessField(title));
+                    processSrc = processSrc.replaceAll(`'<NAME>'`, cleanProcessField(postTitle));
                     processSrc = processSrc.replaceAll('<TICKER>', 'ATOMIC');
                     processSrc = processSrc.replaceAll('<DENOMINATION>', '1');
                     processSrc = processSrc.replaceAll('<BALANCE>', balance.toString());
@@ -250,58 +250,10 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
         toast({
           description: "Uploaded to Arweave!",
         });
-        onUpload(videoTxIds[0].txid);
+        console.log("postTitle at uploadvideos: ", postTitle);
+        console.log("postDescription at uploadvideos: ", postDescription);
+        onUpload(videoTxIds[0].txid, postTitle, postDescription);
 
-      // const jsonIndex = {
-      //   media: videoTxIds.map(({ txid, path, type }) => ({
-      //     path: path,
-      //     txid: txid,
-      //     type: type
-      //   }))
-      // };
-      // const jsonContent = JSON.stringify(jsonIndex, null, 2);
-      // // const jsonTransaction = await arweave.createTransaction({ data: jsonContent }, "use_wallet");
-      // const jsonTransaction = await arweave.createTransaction({ data: jsonContent });
-
-      // jsonTransaction.addTag("Content-Type", "application/json");
-      // // await arweave.transactions.sign(jsonTransaction, "use_wallet");
-      // await api.sign(jsonTransaction);
-
-      // const jsonResponse = await arweave.transactions.post(jsonTransaction);
-      // if (jsonResponse.status !== 200) {
-      //   throw new Error("Failed to upload JSON index");
-      // }
-      // const jsonIndexTxId = jsonTransaction.id;
-      // console.log("JSON index uploaded successfully:", jsonIndexTxId);
-
-      // const manifest = {
-      //   manifest: "arweave/paths",
-      //   version: "0.2.0",
-      //   index: { path: "index.json" },
-      //   paths: {
-      //     "0": { id: videoTxIds[0].txid },
-      //     "index.json": { id: jsonIndexTxId }
-      //   }
-      // };
-
-      // const manifestTransaction = await arweave.createTransaction(
-      //   { data: JSON.stringify(manifest) },
-      //   "use_wallet"
-      // );
-      // manifestTransaction.addTag('Content-Type', 'application/x.arweave-manifest+json');
-      // await arweave.transactions.sign(manifestTransaction, "use_wallet");
-      // const manifestResponse = await arweave.transactions.post(manifestTransaction);
-
-      // if (manifestResponse.status === 200) {
-      //   console.log('Manifest uploaded successfully:', manifestTransaction.id);
-      //   toast({
-      //     description: "Uploaded to Arweave!",
-      //   });
-      //   onUpload(manifestTransaction.id);
-      // } else {
-      //   console.error('Failed to upload manifest');
-      //   onUpload(null);
-      // }
     } catch (error) {
       console.error('Error uploading video:', error);
     }
@@ -318,12 +270,28 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
           <video
             src={video.preview}
             controls
-            style={{ width: '100%', maxWidth: '600px' }}
+            style={{ width: '100%', maxWidth: '600px', maxHeight: '400px', objectFit: 'contain' }}
             className="mx-auto"
           />
         </div>
       )}
-      <div className="flex items-center">
+      <div className="flex flex-col gap-4 mt-4">
+        <input
+          type="text"
+          placeholder="Enter video title"
+          value={postTitle}
+          onChange={(e) => setPostTitle(e.target.value)}
+          className="p-2 border rounded"
+        />
+        <textarea
+          placeholder="Enter video description"
+          value={postDescription}
+          onChange={(e) => setPostDescription(e.target.value)}
+          className="p-2 border rounded"
+          rows={4}
+        />
+      </div>
+      <div className="flex items-center mt-4">
         <span className="mr-2 text-xs font-medium">This asset will contain a license</span>
         <input type="checkbox" defaultChecked className="mt-0.5" />
       </div>
@@ -334,7 +302,7 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
         <Button
           type="submit"
           onClick={uploadToArweave}
-          disabled={hasLargeVideo || false}
+          disabled={hasLargeVideo || !postTitle || !postDescription}
         >Upload
         </Button>
         <Button variant="secondary" onClick={onCancel}>

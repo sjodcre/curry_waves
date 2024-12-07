@@ -26,7 +26,10 @@ import {
   FilePenLine,
   Share,
   BadgeDollarSign,
-  MessageCircle
+  MessageCircle,
+  ShoppingCart,
+  Ban,
+  ShoppingBag
 } from "lucide-react";
 
 import {
@@ -37,6 +40,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {useApi, useConnection } from "arweave-wallet-kit";
 // import RegisterModal from "./ui/register-modal";
@@ -47,6 +51,7 @@ import { useArweaveProvider } from "@/context/ProfileContext";
 import UploadVideos from "./UploadVideos";
 
 import { processId } from "@/config/config";
+import MediaDisplay from "./MediaDisplay";
 // import { createManifest, uploadImage, uploadManifest } from "@/lib/ImagesUpload";
 // import { User } from "./UserProfile";
 
@@ -130,6 +135,7 @@ const ViewPosts = () => {
           ...post,
           Liked: post.Liked === 1, // Convert Liked to boolean (if present)
           LikeCount: post.LikeCount || 0, // Ensure LikeCount defaults to 0
+          SellingStatus: post.SellingStatus === 1, // Convert SellingStatus to boolean (if present)
 
         }));
       });
@@ -170,7 +176,7 @@ const ViewPosts = () => {
     if (!arProvider.profile) return;
     setIsLoading(true);
     try {
-      console.log("user profile: ", arProvider.profile);
+      // console.log("user profile: ", arProvider.profile);
       const response = await dryrun({
         process: processId,
         // data: "",
@@ -180,13 +186,19 @@ const ViewPosts = () => {
         ],
         // anchor: "latest"
       });
-      console.log("fetched user posts  before parsing: ", response);
+      // console.log("fetched user posts  before parsing: ", response);
 
       const parsedPosts = response.Messages.map((msg) => {
         const parsedData = JSON.parse(msg.Data);
-        return parsedData;
+        // return parsedData;
+        return parsedData.map((post: any) => ({
+          ...post,
+          Liked: post.Liked === 1, // Convert Liked to boolean (if present)
+          LikeCount: post.LikeCount || 0, // Ensure LikeCount defaults to 0
+          SellingStatus: post.SellingStatus === 1, // Convert SellingStatus to boolean (if present)
+        }));
       });
-      console.log("fetched user posts: ", parsedPosts[0]);
+      // console.log("fetched user posts: ", parsedPosts[0]);
       setUserPosts(parsedPosts[0]);
     } catch (error) {
       console.log(error);
@@ -283,7 +295,7 @@ const ViewPosts = () => {
   // };
 
   // const createPosts = async (e: any) => {
-  const createPosts = async (videoTxId: string) => {
+  const createPosts = async (videoTxId: string, title: string, description: string) => {
 
     // e.preventDefault();
     // e.stopPropagation();
@@ -297,18 +309,18 @@ const ViewPosts = () => {
     //   return;
     // }
     try {
-      console.log("postTitle: ", postTitle);
-      console.log("postDescription: ", postDescription);
+      console.log("postTitle: ", title);
+      console.log("postDescription: ", description);
       const res = await message({
         process: processId,
         tags: [
           { name: "Action", value: "Create-Post" },
           { name: "VideoTxId", value: videoTxId },
-          { name: "Title", value: postTitle || "Untitled" },
+          { name: "Title", value: title || "Untitled" },
           { name: "Name", value: arProvider.profile.username || "ANON" },
           // { name: "MediaType", value: mediaType.toString() || "video"}, // Add this tag
         ],
-        data: postDescription || "No description",
+        data: description || "No description",
         signer: createDataItemSigner(window.arweaveWallet),
       });
 
@@ -401,13 +413,16 @@ const ViewPosts = () => {
   //   }
   // };
 
-  const handleVideosUpload = async (txid: string | null) => {
+  const handleVideosUpload = async (txid: string | null, title: string, description: string) => {
     if (txid) {
-      // setManifestTxid(txid);
+      console.log("title at viewposts: ", title);
+      console.log("description at viewposts: ", description);
       setVideoTxId(txid);
       setMediaType("video");
+      setPostTitle(title);
+      setPostDescription(description);
   
-      await createPosts(txid);
+      await createPosts(txid, title, description);
       setIsDialogOpen(false); // Close the dialog
       await fetchPosts();
       await fetchUserPosts();
@@ -438,26 +453,150 @@ const ViewPosts = () => {
       });
   };
 
-  // const handlePostClick = async(post: Post) => {
-  //   if (selectedPost && selectedPost.ID === post.ID) {
-  //     setSelectedPost(null); // Close the dialog if the same post is clicked again
-  //   } else {
-  //     setSelectedPost(post); // Open the dialog with the selected post
-  //   }
-  //   const paths = await fetchManifest(post.Manifest);
+  const handleSellOrCancelSell = async (post: Post) => {
+    if (!arProvider.profile) return;
+    setIsLoading(true);
+    if (!post.SellingStatus) {
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Publish-Post-For-Sale" },
+            { name: "PostID", value: post.AutoID.toString() },
+            { name: "Price", value: "1" },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
 
-  //   // const paths = await fetchManifest("YcC5ABo3LuLh8laFa5dKUeDDdlROi1rcHJ94Eo0uRYA");
-  //   if (!paths) {
-  //     console.error('Failed to fetch manifest paths');
-  //     return;
-  //   }
-    
-  // // @ts-ignore: TS2345
-  //   const imageUrls = extractImageUrls(paths);
-  //   console.log("imageUrls: ", imageUrls);
-  //   setSlides(imageUrls); // Set the fetched slides in a state for rendering
-    
-  // };
+        const sellResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        console.log("Created successfully", sellResult);
+        console.log(sellResult.Messages[0].Data);
+        //   toast({
+        //     description: "Post createad Successfully!!",
+        //   });
+        if (sellResult.Messages[0].Data === "Post listed for sale successfully.") {
+          toast({
+            description: "Post listed for sale successfully!!",
+          });
+          await fetchPosts(); // Fetch all posts
+          await fetchUserPosts(); // Fetch user-specific posts
+        }
+        
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Handle case when post is already for sale
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Cancel-Post-Sale" },
+            { name: "PostID", value: post.AutoID.toString() },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
+
+        const cancelResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        if (cancelResult.Messages[0].Data === "Post sale cancelled successfully.") {
+          toast({
+            description: "Post sale cancelled successfully!"
+          });
+          await fetchPosts(); // Fetch all posts
+          await fetchUserPosts(); // Fetch user-specific posts
+        }
+      } catch (error) {
+        console.log(error);
+        toast({
+          description: "Error cancelling post sale"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleBuyOrCancelSell = async (post: Post) => {
+    if (!arProvider.profile) return;
+    setIsLoading(true);
+
+    // Check if the current user is the post owner
+    if (arProvider.profile.id === post.PID) {
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Cancel-Post-Sale" },
+            { name: "PostID", value: post.AutoID.toString() },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
+
+        const cancelResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        
+        if (cancelResult.Messages[0].Data === "Post sale cancelled successfully.") {
+          toast({
+            description: "Post sale cancelled successfully!"
+          });
+          await fetchPosts();
+          await fetchUserPosts();
+        }
+      } catch (error) {
+        console.log(error);
+        toast({
+          description: "Error cancelling post sale"
+        });
+      }
+    } else {
+      // Placeholder for buy functionality
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Buy-Post" },
+            { name: "PostID", value: post.AutoID.toString() },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
+
+        const buyResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        console.log("Buy Post result", buyResult);
+        console.log(buyResult.Messages[0].Data);
+
+        if (buyResult.Messages[0].Data === "Post purchased successfully.") {
+          toast({
+            description: "Post purchased successfully!"
+          });
+          await fetchPosts();
+          await fetchUserPosts();
+        }
+      } catch (error) {
+        console.log(error);
+        toast({
+          description: "Error cancelling post sale"
+        });
+      }
+    }
+    setIsLoading(false);
+  };
 
   const handlePostClick = (post: Post) => {
     navigate(`/post/${post.ID}`); // Navigate to the post detail page
@@ -749,31 +888,26 @@ const ViewPosts = () => {
                                 >
                                   {post.Title}
                                 </h3>
-                                <div className="flex gap-4">
+                                <div className="flex flex-col gap-4">
+                                  <div className="w-full">
+                                    <MediaDisplay
+                                      media={[`https://arweave.net/${post.VideoTxId}`]}
+                                      mediaType={"video"}
+                                    />
+                                  </div>
+                                  
                                   <div className="flex-1">
                                     <span>{post.Body?.slice(0, 30)}</span>
                                     <span 
                                       className="text-blue-500 hover:underline hover:cursor-pointer ml-2"
                                       onClick={() => handlePostClick(post)}
                                     >
-                                      Read more...
+                                      View details...
                                     </span>
                                   </div>
-                                  {post.VideoTxId && (
-                                    <div className="w-24 h-24 relative">
-                                      <img
-                                        src={`https://arweave.net/${post.VideoTxId}`}
-                                        alt="First slide"
-                                        className="w-full h-full object-cover rounded"
-                                        onError={(e) => {
-                                          // Hide image on error
-                                          (e.target as HTMLElement).style.display = 'none';
-                                        }}
-                                      />
-                                    </div>
-                                  )}
                                 </div>
                               </div>
+                              
                               <div className="flex gap-2 post-actions">
                                 <span
                                   className="cursor-pointer flex items-center gap-1"
@@ -816,7 +950,51 @@ const ViewPosts = () => {
                                 >
                                   <BadgeDollarSign size={20} />
                                 </span>
-                                
+                                {post.SellingStatus && (
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <span
+                                        className={`cursor-pointer ${arProvider.profile?.id === post.PID ? 'text-red-500' : 'text-green-500'}`}
+                                        title={arProvider.profile?.id === post.PID ? "Cancel Sell" : "Buy Post"}
+                                      >
+                                        {arProvider.profile?.id === post.PID ? (
+                                          <Ban size={20} />
+                                        ) : (
+                                          <ShoppingCart size={20} />
+                                        )}
+                                      </span>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>
+                                          {arProvider.profile?.id === post.PID ? 
+                                            "Cancel Sale?" :
+                                            "Buy Post?"
+                                          }
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                          {arProvider.profile?.id === post.PID ?
+                                            "Are you sure you want to cancel the sale of this post?" :
+                                            "Are you sure you want to buy this post?"
+                                          }
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <DialogFooter className="flex justify-end gap-2">
+                                        <DialogClose asChild>
+                                          <Button variant="outline">
+                                            No
+                                          </Button>
+                                        </DialogClose>
+                                        <Button 
+                                          variant={arProvider.profile?.id === post.PID ? "destructive" : "default"}
+                                          onClick={() => handleBuyOrCancelSell(post)}
+                                        >
+                                          Yes
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1006,6 +1184,50 @@ const ViewPosts = () => {
                                               Save changes
                                             </Button>
                                           </div>
+                                        </DialogFooter>
+                                      </DialogContent>
+                                    </Dialog>
+
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          {post.SellingStatus ? (
+                                            <Ban size={20} className="text-red-500" />
+                                          ) : (
+                                            <ShoppingBag size={20} className="text-yellow-500" />
+                                          )}
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent>
+                                        <DialogHeader>
+                                          <DialogTitle>
+                                            {post.SellingStatus ? 
+                                              "Cancel Sale?" :
+                                              "List Post For Sale?"
+                                            }
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                            {post.SellingStatus ?
+                                              "Are you sure you want to cancel the sale of this post?" :
+                                              "Would you like to list this post for sale?"
+                                            }
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter className="flex justify-end gap-2">
+                                          <DialogClose asChild>
+                                            <Button variant="outline">
+                                              No
+                                            </Button>
+                                          </DialogClose>
+                                          <Button 
+                                            variant={post.SellingStatus ? "destructive" : "default"}
+                                            onClick={() => handleSellOrCancelSell(post)}
+                                          >
+                                            Yes
+                                          </Button>
                                         </DialogFooter>
                                       </DialogContent>
                                     </Dialog>
