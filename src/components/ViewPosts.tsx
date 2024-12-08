@@ -47,7 +47,7 @@ import {useApi, useConnection } from "arweave-wallet-kit";
 // import { User } from "./UserProfile";
 import { transferAR } from "@/lib/TransferAR";
 import { useArweaveProvider } from "@/context/ProfileContext";
-// import UploadSlides from "./UploadSlides";
+
 import UploadVideos from "./UploadVideos";
 
 import { processId } from "@/config/config";
@@ -89,9 +89,7 @@ const ViewPosts = () => {
   const [currentPostId, setCurrentPostId] = useState<string | null>(null); // State to hold the current post ID
   const [selectedPost, setSelectedPost] = useState<Post | null>(null); // State to manage the selected post for the dialog
   const { connected } = useConnection();
-  const [currentSlide, setCurrentSlide] = useState(0); // State to manage the current slide index
   const [videoTxId, setVideoTxId] = useState<string | null>(null); // State to hold the video transaction ID
-  // const [uploadedSlides, setUploadedSlides] = useState<File[]>([]); // State to hold uploaded slides
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage dialog open/close
   const [isloading, setIsLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -99,7 +97,6 @@ const ViewPosts = () => {
   const [editPostTitle, setEditPostTitle] = useState(""); // State for editing title
   const [editPostBody, setEditPostBody] = useState(""); // State for editing body
   // const [manifestTxid, setManifestTxid] = useState<string | null>(null);
-  const [slides, setSlides] = useState<string[]>([]);
   const [mediaType, setMediaType] = useState(""); // State for media type
   const navigate = useNavigate(); 
 
@@ -210,9 +207,9 @@ const ViewPosts = () => {
     }
   };
 
-  const extractImageUrls = (paths: { path: string; txid: string }[]): string[] => {
-    return paths.map(({ txid }) => `https://arweave.net/${txid}`);
-};
+//   const extractImageUrls = (paths: { path: string; txid: string }[]): string[] => {
+//     return paths.map(({ txid }) => `https://arweave.net/${txid}`);
+// };
 
   // const createPosts = async (e: any) => {
   const createPosts = async (videoTxId: string, title: string, description: string) => {
@@ -264,13 +261,17 @@ const ViewPosts = () => {
           description: "Post created successfully!!",
         });
         setIsDialogOpen(false); // Close the dialog
-
-        await fetchPosts(); // Fetch all posts
-        await fetchUserPosts(); // Fetch user-specific posts
+        refreshPosts();
+      
       }
     } catch (error) {
       console.log(error);
     }
+  };
+
+  const refreshPosts = async () => {
+    await fetchPosts(); // Fetch all posts
+    await fetchUserPosts(); // Fetch user-specific posts
   };
 
   const updatePost = async (postId: string | null) => {
@@ -325,8 +326,8 @@ const ViewPosts = () => {
   
       await createPosts(txid, title, description);
       setIsDialogOpen(false); // Close the dialog
-      await fetchPosts();
-      await fetchUserPosts();
+      refreshPosts();
+
     } else {
       toast({
         description: 'Failed to upload videos.',
@@ -366,8 +367,7 @@ const ViewPosts = () => {
           toast({
             description: "Post listed for sale successfully!!"
           });
-          await fetchPosts();
-          await fetchUserPosts();
+
         }
       } else {
         const cancelResult = await cancelSellPost(post.AutoID.toString(), window.arweaveWallet);
@@ -375,8 +375,7 @@ const ViewPosts = () => {
           toast({
             description: "Post sale cancelled successfully!"
           });
-          await fetchPosts();
-          await fetchUserPosts();
+
         }
       }
     } catch (error) {
@@ -386,6 +385,7 @@ const ViewPosts = () => {
       });
     } finally {
       setIsLoading(false);
+      refreshPosts();
     }
   };
 
@@ -401,8 +401,7 @@ const ViewPosts = () => {
           toast({
             description: "Post sale cancelled successfully!"
           });
-          await fetchPosts();
-          await fetchUserPosts();
+
         }
       } else {
         const buyResult = await buyPost(post.AutoID.toString(), window.arweaveWallet);
@@ -410,8 +409,7 @@ const ViewPosts = () => {
           toast({
             description: "Post purchased successfully!"
           });
-          await fetchPosts();
-          await fetchUserPosts();
+
         }
       }
     } catch (error) {
@@ -421,6 +419,8 @@ const ViewPosts = () => {
       });
     } finally {
       setIsLoading(false);
+      refreshPosts();
+
     }
   };
 
@@ -557,8 +557,8 @@ const ViewPosts = () => {
 
   useEffect(() => {
     if (connected) {
-      fetchPosts();
-      fetchUserPosts();
+      refreshPosts();
+
       // Profile();
       console.log("refetching posts and user posts");
 
@@ -853,44 +853,7 @@ const ViewPosts = () => {
                             <p>Posted: {new Date(selectedPost.Timestamp).toLocaleString('en-US', { timeZoneName: 'short' })}</p>
                         </DialogDescription>
                         </DialogHeader>
-                        {slides.length > 0 && (
-                          <div className="modal relative">
-                            <div className="slideshow w-full h-[400px] relative">
-                              <div className="flex items-center justify-center h-full">
-                                {slides.map((url, index) => (
-                                  <img 
-                                    key={index}
-                                    src={url}
-                                    alt={`Slide ${index + 1}`}
-                                    className="w-[600px] h-[400px] object-contain absolute transition-opacity duration-300"
-                                    style={{opacity: currentSlide === index ? 1 : 0}}
-                                  />
-                                ))}
-                              </div>
-                              <button 
-                                onClick={() => setCurrentSlide(prev => prev === 0 ? slides.length - 1 : prev - 1)}
-                                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
-                              >
-                                ←
-                              </button>
-                              <button 
-                                onClick={() => setCurrentSlide(prev => prev === slides.length - 1 ? 0 : prev + 1)}
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
-                              >
-                                →
-                              </button>
-                              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                                {slides.map((_, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => setCurrentSlide(index)}
-                                    className={`w-2 h-2 rounded-full ${currentSlide === index ? 'bg-white' : 'bg-white/50'}`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                       
                         <DialogFooter>
                         </DialogFooter>
                     </DialogContent>
