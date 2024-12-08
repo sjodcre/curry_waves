@@ -24,13 +24,14 @@ import {
   Trash2,
   Heart,
   FilePenLine,
-  Share,
+  Bookmark,
   BadgeDollarSign,
   MessageCircle,
   ShoppingCart,
   Ban,
   ShoppingBag
 } from "lucide-react";
+
 
 import {
   Dialog,
@@ -75,6 +76,7 @@ export interface Post {
   Body?: string; // Optional for cases where it's not included
   Timestamp: number;
   Liked?: boolean;
+  Bookmarked?: boolean;
   LikeCount: number; // New property for like count, default to 0 if not provided
   // Manifest: string;
   // MediaType?: 'image' | 'video';
@@ -93,6 +95,7 @@ const ViewPosts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage dialog open/close
   const [isloading, setIsLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [editPostTitle, setEditPostTitle] = useState(""); // State for editing title
   const [editPostBody, setEditPostBody] = useState(""); // State for editing body
@@ -207,6 +210,36 @@ const ViewPosts = () => {
     }
   };
 
+  const fetchBookmarkedPosts = async () => {
+    if (!connected) return;
+    if (!arProvider.profile) return;
+    setIsLoading(true);
+    try {
+      const response = await dryrun({
+        process: processId,
+        tags: [
+          { name: "Action", value: "Get-Bookmarked-Posts" },
+          { name: "Author-Id", value: arProvider.profile.walletAddress },
+        ],
+      });
+      const parsedPosts = response.Messages.map((msg) => {
+        const parsedData = JSON.parse(msg.Data);
+      //   return parsedData;
+      console.log("parsedPosts before mapping: ", parsedData);
+      return parsedData.map((post: any) => ({
+          ...post,
+          LikeCount: post.LikeCount || 0, // Ensure LikeCount defaults to 0
+          }));
+      });
+      console.log("parsedPosts after mapping: ", parsedPosts[0]);
+      setBookmarkedPosts(parsedPosts[0]);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 //   const extractImageUrls = (paths: { path: string; txid: string }[]): string[] => {
 //     return paths.map(({ txid }) => `https://arweave.net/${txid}`);
 // };
@@ -261,7 +294,6 @@ const ViewPosts = () => {
           description: "Post created successfully!!",
         });
         setIsDialogOpen(false); // Close the dialog
-        refreshPosts();
       
       }
     } catch (error) {
@@ -272,6 +304,7 @@ const ViewPosts = () => {
   const refreshPosts = async () => {
     await fetchPosts(); // Fetch all posts
     await fetchUserPosts(); // Fetch user-specific posts
+    await fetchBookmarkedPosts(); // Fetch bookmarked posts
   };
 
   const updatePost = async (postId: string | null) => {
@@ -348,11 +381,92 @@ const ViewPosts = () => {
     setCurrentPostId(post.AutoID.toString()); // Set the AutoID for the post being deleted
   };
 
-  const handleSharePost = async (post: Post) => {
-    console.log("post shared: ", post);
-    toast({
-        description: "Sharable in the future!!",
-      });
+  const handleBookmarkPost = async (location: string, post: Post) => {
+    const updatedPost = { ...post }; // Create a copy of the post to update
+    if (!post.Bookmarked) {
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Save-Post" },
+            { name: "PostID", value: post.AutoID.toString() },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
+        console.log("Save Post result", res);
+
+        const saveResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        console.log("Post saved", saveResult);
+        console.log(saveResult.Messages[0].Data);
+
+        if (saveResult.Messages[0].Data === "Post saved to bookmarks successfully.") {
+          toast({
+            description: "Post saved to bookmarks successfully!"
+          });
+          updatedPost.Bookmarked = true; // Update the local state
+        }
+          
+      } catch (error) {
+          console.log(error);
+          toast({
+              description: "Error saving post"
+          });
+          throw error;
+      }
+    } else {
+      // Handle removing bookmark case
+      try {
+        const res = await message({
+          process: processId,
+          tags: [
+            { name: "Action", value: "Unsave-Post" },
+            { name: "PostID", value: post.AutoID.toString() },
+          ],
+          signer: createDataItemSigner(window.arweaveWallet),
+        });
+        console.log("Unsave Post result", res);
+
+        const unsaveResult = await result({
+          process: processId,
+          message: res,
+        });
+
+        console.log("Post unsaved", unsaveResult);
+        console.log(unsaveResult.Messages[0].Data);
+
+        if (unsaveResult.Messages[0].Data === "Post removed from bookmarks successfully.") {
+          toast({
+            description: "Post removed from bookmarks successfully!"
+          });
+          updatedPost.Bookmarked = false; // Update the local state
+        }
+          
+      } catch (error) {
+          console.log(error);
+          toast({
+              description: "Error saving post"
+          });
+          throw error;
+      }
+    }
+
+    if(location === "all-posts") {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
+      );
+    } else if (location === "bookmarked") {
+      setBookmarkedPosts((prevPosts) =>
+        prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
+      );
+    }
+    
+    // setPosts((prevPosts) =>
+    //   prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
+    // );
   };
 
   // Utility functions moved to utils file
@@ -429,18 +543,17 @@ const ViewPosts = () => {
   };
 
 
-  const handleCommentLoad = async (post: Post) => {
-    console.log("post comment: ", post);
-    toast({
-        description: "Commentable in the future!!",
-      });
-  };
+  // const handleCommentLoad = async (post: Post) => {
+  //   console.log("post comment: ", post);
+  //   toast({
+  //       description: "Commentable in the future!!",
+  //     });
+  // };
 
-  const handleLikeToggle = async (post: Post) => {
+  const handleLikeToggle = async (location: string, post: Post) => {
     const updatedPost = { ...post }; // Create a copy of the post to update
 
     if (post.Liked) {
-      console.log("liked");
       const res = await message({
         process: processId,
         tags: [
@@ -468,7 +581,6 @@ const ViewPosts = () => {
         updatedPost.LikeCount = Math.max(0, updatedPost.LikeCount - 1); 
       }
     } else {
-      console.log("not liked");
       const res = await message({
         process: processId,
         tags: [
@@ -496,9 +608,16 @@ const ViewPosts = () => {
         updatedPost.LikeCount += 1; // Increase like count
       }
     }
-    setPosts((prevPosts) =>
-      prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
-    );
+    if(location === "all-posts") {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
+      );
+    } else if (location === "bookmarked") {
+      setBookmarkedPosts((prevPosts) =>
+        prevPosts.map((p) => (p.ID === updatedPost.ID ? updatedPost : p))
+      );
+    }
+    
   };
 
   const handleSendTip = async (post: Post) => {
@@ -544,16 +663,17 @@ const ViewPosts = () => {
         toast({
           description: "Post Deleted Successfully!!",
         });
+        refreshPosts();
       }
-      fetchUserPosts();
+      
     } catch (error) {
       console.log(error);
     }
   };
 
-  useEffect(() => {
-      fetchPosts();
-  }, []);
+  // useEffect(() => {
+  //     fetchPosts();
+  // }, []);
 
   useEffect(() => {
     if (connected) {
@@ -684,9 +804,10 @@ const ViewPosts = () => {
           <Tabs defaultValue="all-posts" className="w-full">
             {" "}
             {/* Change width to full */}
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="all-posts">All Posts</TabsTrigger>
-              <TabsTrigger value="your-posts">Your Posts</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all-posts" >All Posts</TabsTrigger>
+              <TabsTrigger value="your-posts" onClick={() => fetchUserPosts()}>Your Posts</TabsTrigger>
+              <TabsTrigger value="bookmarked" onClick={() => fetchBookmarkedPosts()}>Bookmarked</TabsTrigger>
             </TabsList>
             <TabsContent value="all-posts">
               <ScrollArea className="h-[500px] rounded-md border p-4 text-white">
@@ -746,7 +867,7 @@ const ViewPosts = () => {
                                       });
                                       return;
                                     }
-                                    handleLikeToggle(post);
+                                    handleLikeToggle("all-posts", post);
                                   }}
                                   title="Like"
                                 >
@@ -757,19 +878,19 @@ const ViewPosts = () => {
                                       : post.LikeCount}
                                   </span>
                                 </span>
-                                <span
+                                {/* <span
                                   className="cursor-pointer flex items-center text-gray-500"
                                   onClick={() => handleCommentLoad(post)}
                                   title="Comment"
                                 >
                                   <MessageCircle size={20} />
-                                </span>
+                                </span> */}
                                 <span
-                                  className="cursor-pointer flex items-center text-gray-500"
-                                  onClick={() => handleSharePost(post)}
-                                  title="Share"
+                                  className={`cursor-pointer flex items-center ${post.Bookmarked ? 'text-blue-500' : 'text-white'}`}
+                                  onClick={() => handleBookmarkPost("all-posts", post)}
+                                  title="Bookmark"
                                 >
-                                  <Share size={20} />
+                                  <Bookmark fill={post.Bookmarked ? 'blue' : ''} size={20} />
                                 </span>
                                 <span
                                   className="cursor-pointer flex items-center text-green-500"
@@ -896,6 +1017,7 @@ const ViewPosts = () => {
                                         <Button
                                           variant="ghost"
                                           className="h-8 w-8 p-0"
+                                          title="Delete"
                                           onClick={() => handleDeletePost(post)}
                                         >
                                           <Trash2 size={20} />
@@ -930,6 +1052,7 @@ const ViewPosts = () => {
                                         <Button
                                           variant="ghost"
                                           className="h-8 w-8 p-0"
+                                          title="Edit"
                                           onClick={() => handleEditPost(post)}
                                         >
                                           <FilePenLine size={20} />
@@ -991,6 +1114,7 @@ const ViewPosts = () => {
                                             <Button
                                               variant="ghost"
                                               className="h-8 w-8 p-0"
+                                              title={post.SellingStatus ? "Cancel Sale" : "Sell"}
                                             >
                                               {post.SellingStatus ? (
                                                 <Ban size={20} className="text-red-500" />
@@ -1067,6 +1191,121 @@ const ViewPosts = () => {
                   </ScrollArea>
                 </div>
               )}
+            </TabsContent>
+            <TabsContent value="bookmarked">
+              <ScrollArea className="h-[500px] rounded-md border p-4 text-white">
+                <div>
+                  {isloading ? (
+                    <div className="flex items-center space-x-4 text-3xl text-white">
+                      Loading...
+                    </div>
+                  ) : (
+                    <div>
+                      {bookmarkedPosts?.length > 0 ? (
+                        bookmarkedPosts.map((post) => (
+                          <div key={post.ID} className="grid mb-3">
+                            <div className="border rounded-lg px-3 grid gap-y-2 py-3">
+                              <div className="flex gap-2 items-center">
+                                <CircleUserRound size={20} />
+                                <div className="flex gap-2 items-center">
+                                  <span className="font-semibold">
+                                    {post.Author} | {post.PID.slice(0, 6)}...{post.ID.slice(-6)}
+                                  </span>
+                                </div>{" "}
+                              </div>
+                              <div>
+                                <h3 
+                                  className="text-xl hover:underline hover:cursor-pointer" 
+                                  onClick={() => handlePostClick(post)}
+                                >
+                                  {post.Title}
+                                </h3>
+                                <div className="flex flex-col gap-4">
+                                  <div className="w-full">
+                                    <MediaDisplay
+                                      media={[`https://arweave.net/${post.VideoTxId}`]}
+                                      mediaType={"video"}
+                                    />
+                                  </div>
+                                  
+                                  <div className="flex-1">
+                                    <span>{post.Body?.slice(0, 30)}</span>
+                                    <span 
+                                      className="text-blue-500 hover:underline hover:cursor-pointer ml-2"
+                                      onClick={() => handlePostClick(post)}
+                                    >
+                                      View details...
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2 post-actions">
+                                <span
+                                  className="cursor-pointer flex items-center gap-1"
+                                  onClick={() => {
+                                    if (!arProvider.profile?.version) {
+                                      toast({
+                                        description: "You cannot like a post, create an AO profile first!"
+                                      });
+                                      return;
+                                    }
+                                    handleLikeToggle("bookmarked", post);
+                                  }}
+                                  title="Like"
+                                >
+                                  <HeartIcon filled={post.Liked || false} />
+                                  <span>
+                                    {post.LikeCount >= 1000 
+                                      ? (post.LikeCount / 1000).toFixed(1) + 'k'
+                                      : post.LikeCount}
+                                  </span>
+                                </span>
+                                <span
+                                  className={`cursor-pointer flex items-center ${post.Bookmarked ? 'text-blue-500' : 'text-white'}`}
+                                  onClick={() => handleBookmarkPost("bookmarked", post)}
+                                  title="Bookmark"
+                                >
+                                  <Bookmark fill={post.Bookmarked ? 'blue' : ''} size={20} />
+                                </span>
+                                <span
+                                  className="cursor-pointer flex items-center text-green-500"
+                                  onClick={() => handleSendTip(post)}
+                                  title="Tip"
+                                >
+                                  <BadgeDollarSign size={20} />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-4">
+                          No posts available
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              {selectedPost && (
+                    <Dialog open={!!selectedPost} onOpenChange={() => setSelectedPost(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>{selectedPost.Title}</DialogTitle>
+                        <DialogDescription>
+                            <p>{selectedPost.Body}</p>
+                            <p>Author: {selectedPost.Author}</p>
+                            <p>Likes: {selectedPost.LikeCount}</p>
+                            <p>Posted: {new Date(selectedPost.Timestamp).toLocaleString('en-US', { timeZoneName: 'short' })}</p>
+                        </DialogDescription>
+                        </DialogHeader>
+                       
+                        <DialogFooter>
+                        </DialogFooter>
+                    </DialogContent>
+                    </Dialog>
+                )}
             </TabsContent>
           </Tabs>
         </div>
