@@ -24,6 +24,8 @@ if [ -z "$UNDERNAME" ]; then
   echo "UNDERNAME is not set. Setting it to decen_platform"
 fi
 # echo $ANT
-GITHUB_SHA="test npm run frontend:deploy"
+#1. export DEPLOY_KEY=$(base64 -i ../../.secrets/cookbook2.json)
+#2. export ANT_PROCESS=kzoVwiVrpSCTGRyURFKeuxvvS5InXamfUE03TANUQR4
+#3. GITHUB_SHA="test" npm run frontend:deploy
 # DEPLOY_KEY=$(base64 -i ../../.secrets/cookbook2.json) npx -y permaweb-deploy --deploy-folder dist --ant-process $ANT_PROCESS --undername $UNDERNAME
 DEPLOY_KEY=$(base64 -i ../../.secrets/cookbook2.json) npx permaweb-deploy --ant-process kzoVwiVrpSCTGRyURFKeuxvvS5InXamfUE03TANUQR4 --undername $UNDERNAME

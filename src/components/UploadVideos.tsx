@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useActiveAddress } from 'arweave-wallet-kit';
 import { useConnection } from 'arweave-wallet-kit';
-import Arweave from 'arweave';
+// import Arweave from 'arweave';
 import { Button } from './ui/button';
 import { toast } from './ui/use-toast';
 import { TagType } from '@/lib/ProfileUtils';
@@ -48,6 +48,7 @@ interface UploadVideosProps {
   api: any;
 }
 
+// @ts-ignore
 const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api }) => {
   const [video, setVideo] = useState<Video | null>(null);
   const { connect: connectWallet } = useConnection();
@@ -97,11 +98,11 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
       await connectWallet();
     }
 
-    const arweave = Arweave.init({
-      host: 'arweave.net',
-      port: 443,
-      protocol: 'https',
-    });
+    // const arweave = Arweave.init({
+    //   host: 'arweave.net',
+    //   port: 443,
+    //   protocol: 'https',
+    // });
 
     const videoTxIds: { txid: string; path: string; type: string }[] = [];
 
@@ -149,12 +150,12 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                 }
 
                 if (processSrc) {
-                    processSrc = processSrc.replaceAll('<CREATOR>', arProvider?.profile?.id || "ANON");
-                    processSrc = processSrc.replaceAll(`'<NAME>'`, cleanProcessField(postTitle));
-                    processSrc = processSrc.replaceAll('<TICKER>', 'ATOMIC');
-                    processSrc = processSrc.replaceAll('<DENOMINATION>', '1');
-                    processSrc = processSrc.replaceAll('<BALANCE>', balance.toString());
-                    processSrc = processSrc.replaceAll('<COLLECTION>', "");
+                    processSrc = processSrc.replace(/<CREATOR>/g, arProvider?.profile?.id || "ANON");
+                    processSrc = processSrc.replace(/'<NAME>'/g, cleanProcessField(postTitle));
+                    processSrc = processSrc.replace(/<TICKER>/g, 'ATOMIC');
+                    processSrc = processSrc.replace(/<DENOMINATION>/g, '1');
+                    processSrc = processSrc.replace(/<BALANCE>/g, balance.toString());
+                    processSrc = processSrc.replace(/<COLLECTION>/g, "");
                 }
 
                 setUploadProgress(60);

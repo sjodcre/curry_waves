@@ -40,9 +40,9 @@ const EditPost: React.FC = () => {
   //   }
   // };
 
-  const extractImageUrls = (paths: { path: string; txid: string }[]): string[] => {
-    return paths.map(({ txid }) => `https://arweave.net/${txid}`);
-  };
+  // const extractImageUrls = (paths: { path: string; txid: string }[]): string[] => {
+  //   return paths.map(({ txid }) => `https://arweave.net/${txid}`);
+  // };
 
   useEffect(() => {
     const fetchPostData = async () => {

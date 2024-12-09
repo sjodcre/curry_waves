@@ -13,6 +13,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".", // Needed to resolve modules relative to this base directory
+    "noEmitOnError": false,
     "paths": {
       "@/*": ["./src/*"] // Adjust according to your source directory structure
     },

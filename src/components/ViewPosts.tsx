@@ -26,7 +26,6 @@ import {
   FilePenLine,
   Bookmark,
   BadgeDollarSign,
-  MessageCircle,
   ShoppingCart,
   Ban,
   ShoppingBag
@@ -91,6 +90,7 @@ const ViewPosts = () => {
   const [currentPostId, setCurrentPostId] = useState<string | null>(null); // State to hold the current post ID
   const [selectedPost, setSelectedPost] = useState<Post | null>(null); // State to manage the selected post for the dialog
   const { connected } = useConnection();
+  // @ts-ignore
   const [videoTxId, setVideoTxId] = useState<string | null>(null); // State to hold the video transaction ID
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage dialog open/close
   const [isloading, setIsLoading] = useState(false);
@@ -99,11 +99,12 @@ const ViewPosts = () => {
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [editPostTitle, setEditPostTitle] = useState(""); // State for editing title
   const [editPostBody, setEditPostBody] = useState(""); // State for editing body
-  // const [manifestTxid, setManifestTxid] = useState<string | null>(null);
+  // @ts-ignore
   const [mediaType, setMediaType] = useState(""); // State for media type
   const navigate = useNavigate(); 
-
+// @ts-ignore
   const [postDescription, setPostDescription] = useState("");
+  // @ts-ignore
   const [postTitle, setPostTitle] = useState("");
   const [sellPrice, setSellPrice] = useState(0);
   const { toast } = useToast();
@@ -114,6 +115,7 @@ const ViewPosts = () => {
   const fetchPosts = async () => {
     // if (!connected) return;
     setIsLoading(true);
+    console.log("arProvider.profile: ", arProvider.profile);
     if (arProvider.profile) {
       const res = await message({
         process: processId,
@@ -159,12 +161,13 @@ const ViewPosts = () => {
         const parsedPosts = response.Messages.map((msg) => {
           const parsedData = JSON.parse(msg.Data);
         //   return parsedData;
+        // console.log("parsedData before mapping: ", parsedData);
         return parsedData.map((post: any) => ({
             ...post,
             LikeCount: post.LikeCount || 0, // Ensure LikeCount defaults to 0
             }));
         });
-        // console.log("fetched posts: ", parsedPosts[0]);
+        console.log("fetched posts: ", parsedPosts[0]);
         setPosts(parsedPosts[0]);
       } catch (error) {
         console.log(error);
@@ -671,9 +674,9 @@ const ViewPosts = () => {
     }
   };
 
-  // useEffect(() => {
-  //     fetchPosts();
-  // }, []);
+  useEffect(() => {
+      fetchPosts();
+  }, []);
 
   useEffect(() => {
     if (connected) {
