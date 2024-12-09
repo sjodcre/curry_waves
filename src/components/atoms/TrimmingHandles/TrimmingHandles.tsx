@@ -13,7 +13,6 @@ const TrimmingHandles: React.FC<TrimmingHandlesProps> = ({
   duration,
   startTime,
   endTime,
-  dragging,
   setDragging,
 }) => {
   // Calculate positions as percentages

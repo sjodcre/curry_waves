@@ -47,7 +47,7 @@ interface UploadVideosProps {
   onCancel: () => void;
   api: any;
 }
-
+  // @ts-ignore
 const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api }) => {
   const [video, setVideo] = useState<Video | null>(null);
   const { connect: connectWallet } = useConnection();
