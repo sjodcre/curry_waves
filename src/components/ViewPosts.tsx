@@ -723,7 +723,7 @@ const ViewPosts = () => {
                       arProvider.profile.avatar
                         ? `https://www.arweave.net/${arProvider.profile.avatar}`
                         : "/random.svg"
-                    }
+                    } 
                     alt="Profile"
                     className="w-32 h-32 object-cover rounded-full"
                   />
