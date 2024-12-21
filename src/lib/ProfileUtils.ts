@@ -1,12 +1,12 @@
 import { processIdRegistry } from '@/config/config';
-import { ProfileHeaderType } from '@/context/ProfileContext';
+import { ProfileHeaderType } from '@/context/ArweaveProvider';
 import { dryrun } from '@permaweb/aoconnect';
 // import { useArweaveProvider } from 'providers/ArweaveProvider';
 
-export async function fetchUserProfile(walletAddress: string): Promise<ProfileHeaderType> {
+export async function getProfileByWalletAddress(args: { address: string }): Promise<ProfileHeaderType> {
     const emptyProfile: ProfileHeaderType = {
-        id: '', // Changed from null to empty string to match ProfileHeaderType
-        walletAddress: walletAddress,
+        id: '',
+        walletAddress: args.address,
         displayName: null,
         username: null,
         bio: null,
@@ -15,66 +15,48 @@ export async function fetchUserProfile(walletAddress: string): Promise<ProfileHe
         version: null,
     };
 
-    if (!walletAddress) {
-        return emptyProfile; // Return empty profile if no wallet address
+    if (!args.address) {
+        return emptyProfile;
     }
 
     try {
-        const fetchedProfile = await getProfileByWalletAddress({ address: walletAddress });
-        return fetchedProfile || emptyProfile; // Return fetched profile or empty profile
+        const profileLookup = await readHandler({
+            processId: processIdRegistry,
+            action: 'Get-Profiles-By-Delegate',
+            data: { Address: args.address },
+        });
+
+        let activeProfileId: string = "";
+        if (profileLookup && profileLookup.length > 0 && profileLookup[0].ProfileId) {
+            activeProfileId = profileLookup[0].ProfileId;
+        }
+
+        if (activeProfileId) {
+            const fetchedProfile = await readHandler({
+                processId: activeProfileId,
+                action: 'Info',
+                data: null,
+            });
+            console.log("fetchedProfile", fetchedProfile);
+
+            if (fetchedProfile) {
+                return {
+                    id: activeProfileId,
+                    walletAddress: fetchedProfile.Owner || null,
+                    displayName: fetchedProfile.Profile.DisplayName || null,
+                    username: fetchedProfile.Profile.UserName || null,
+                    bio: fetchedProfile.Profile.Description || null,
+                    avatar: fetchedProfile.Profile.ProfileImage || null,
+                    banner: fetchedProfile.Profile.CoverImage || null,
+                    version: fetchedProfile.Profile.Version || null,
+                };
+            }
+        }
+        return emptyProfile;
     } catch (error) {
         console.error('Error fetching profile:', error);
-        return emptyProfile; // Return empty profile on error
+        return emptyProfile;
     }
-}
-
-export async function getProfileByWalletAddress(args: { address: string }): Promise<ProfileHeaderType | null> {
-	const emptyProfile = {
-		id: "",
-		walletAddress: args.address,
-		displayName: null,
-		username: null,
-		bio: null,
-		avatar: null,
-		banner: null,
-		version: null,
-	};
-
-	try {
-		const profileLookup = await readHandler({
-			processId: processIdRegistry, 
-			action: 'Get-Profiles-By-Delegate',
-			data: { Address: args.address },
-		});
-
-		let activeProfileId: string = "";
-		if (profileLookup && profileLookup.length > 0 && profileLookup[0].ProfileId) {
-			activeProfileId = profileLookup[0].ProfileId;
-		}
-
-		if (activeProfileId) {
-			const fetchedProfile = await readHandler({
-				processId: activeProfileId,
-				action: 'Info',
-				data: null,
-			});
-
-			if (fetchedProfile) {
-				return {
-					id: activeProfileId,
-					walletAddress: fetchedProfile.Owner || null,
-					displayName: fetchedProfile.Profile.DisplayName || null,
-					username: fetchedProfile.Profile.UserName || null,
-					bio: fetchedProfile.Profile.Description || null,
-					avatar: fetchedProfile.Profile.ProfileImage || null,
-					banner: fetchedProfile.Profile.CoverImage || null,
-					version: fetchedProfile.Profile.Version || null,
-				};
-			} else return emptyProfile;
-		} else return emptyProfile;
-	} catch (e: any) {
-		throw new Error(e);
-	}
 }
 
 export type TagType = { name: string; value: string };

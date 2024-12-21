@@ -1,9 +1,8 @@
 // import BOOKS from "./constants/books_process";
 // import BooksCrud from "./components/books-crud";
-// import { ArweaveWalletKit } from "arweave-wallet-kit";
 import { createDataItemSigner, message, result } from "@permaweb/aoconnect";
 import ViewPosts from "./components/ViewPosts";
-import { useArweaveProvider } from "./context/ProfileContext";
+import { useArweaveProvider } from "./context/ArweaveProvider";
 import { useEffect } from "react";
 import { processId } from "./config/config";
 // import { ArweaveProvider } from "./context/ProfileContext";
@@ -16,7 +15,8 @@ function Home() {
 useEffect(() => {
     const sendMessageToAOProcess = async () => {
         console.log("attempting to register user")
-        console.log("profile version", arProvider.profile?.version)
+        // console.log("profile version", arProvider.profile?.version)
+        console.log("arProvider.profile", arProvider.profile)
       if (arProvider.profile?.version) {
         try {
           const res = await message({
@@ -26,7 +26,8 @@ useEffect(() => {
               { name: "PID", value: arProvider.profile.id},
               { name: "Name", value: arProvider.profile.username || "ANON" },
             ],
-            signer: createDataItemSigner(window.arweaveWallet), // Sign the message
+            // signer: createDataItemSigner(window.arweaveWallet), // Sign the message
+            signer: createDataItemSigner(arProvider.wallet),
           });
 
           console.log("Message sent successfully:", res);

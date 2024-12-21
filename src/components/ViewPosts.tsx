@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-// import { useConnection, useActiveAddress } from "@arweave-wallet-kit/react";
 import {
   dryrun,
   result,
@@ -42,11 +41,11 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import {useApi, useConnection } from "arweave-wallet-kit";
+// import {useApi, useConnection } from "arweave-wallet-kit";
 // import RegisterModal from "./ui/register-modal";
 // import { User } from "./UserProfile";
 import { transferAR } from "@/lib/TransferAR";
-import { useArweaveProvider } from "@/context/ProfileContext";
+import { useArweaveProvider } from "@/context/ArweaveProvider";
 
 import UploadVideos from "./UploadVideos";
 
@@ -89,7 +88,7 @@ export interface Post {
 const ViewPosts = () => {
   const [currentPostId, setCurrentPostId] = useState<string | null>(null); // State to hold the current post ID
   const [selectedPost, setSelectedPost] = useState<Post | null>(null); // State to manage the selected post for the dialog
-  const { connected } = useConnection();
+  // const { connected } = useConnection();
   // @ts-ignore
   const [videoTxId, setVideoTxId] = useState<string | null>(null); // State to hold the video transaction ID
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage dialog open/close
@@ -108,14 +107,14 @@ const ViewPosts = () => {
   const [postTitle, setPostTitle] = useState("");
   const [sellPrice, setSellPrice] = useState(0);
   const { toast } = useToast();
-  const api = useApi();
+  // const api = useApi();
   const arProvider = useArweaveProvider();
 
 
   const fetchPosts = async () => {
     // if (!connected) return;
     setIsLoading(true);
-    console.log("arProvider.profile: ", arProvider.profile);
+    // console.log("arProvider.profile: ", arProvider.profile);
     if (arProvider.profile) {
       const res = await message({
         process: processId,
@@ -123,7 +122,8 @@ const ViewPosts = () => {
           { name: "Action", value: "List-Posts-Likes" },
           { name: "Author-Id", value: arProvider.profile.walletAddress },
         ],
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       //   console.log("fetch posts w likes result", result);
@@ -178,7 +178,8 @@ const ViewPosts = () => {
   };
 
   const fetchUserPosts = async () => {
-    if (!connected) return;
+    // if (!connected) return;
+    console.log("arProvider", arProvider)
     if (!arProvider.profile) return;
     setIsLoading(true);
     try {
@@ -204,7 +205,7 @@ const ViewPosts = () => {
           SellingStatus: post.SellingStatus === 1, // Convert SellingStatus to boolean (if present)
         }));
       });
-      // console.log("fetched user posts: ", parsedPosts[0]);
+      console.log("fetched user posts: ", parsedPosts[0]);
       setUserPosts(parsedPosts[0]);
     } catch (error) {
       console.log(error);
@@ -214,7 +215,7 @@ const ViewPosts = () => {
   };
 
   const fetchBookmarkedPosts = async () => {
-    if (!connected) return;
+    // if (!connected) return;
     if (!arProvider.profile) return;
     setIsLoading(true);
     try {
@@ -277,7 +278,8 @@ const ViewPosts = () => {
           // { name: "MediaType", value: mediaType.toString() || "video"}, // Add this tag
         ],
         data: description || "No description",
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("Create Post result", result);
@@ -323,7 +325,8 @@ const ViewPosts = () => {
           { name: "Title", value: editPostTitle },
         ],
         data: editPostBody, // Send updated data
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("Update Post result", res);
@@ -394,7 +397,8 @@ const ViewPosts = () => {
             { name: "Action", value: "Save-Post" },
             { name: "PostID", value: post.AutoID.toString() },
           ],
-          signer: createDataItemSigner(window.arweaveWallet),
+          // signer: createDataItemSigner(window.arweaveWallet),
+          signer: createDataItemSigner(arProvider.wallet),
         });
         console.log("Save Post result", res);
 
@@ -429,7 +433,8 @@ const ViewPosts = () => {
             { name: "Action", value: "Unsave-Post" },
             { name: "PostID", value: post.AutoID.toString() },
           ],
-          signer: createDataItemSigner(window.arweaveWallet),
+          // signer: createDataItemSigner(window.arweaveWallet),
+          signer: createDataItemSigner(arProvider.wallet),
         });
         console.log("Unsave Post result", res);
 
@@ -479,7 +484,8 @@ const ViewPosts = () => {
     
     try {
       if (!post.SellingStatus) {
-        const sellResult = await sellPost(post.AutoID.toString(), window.arweaveWallet, price);
+        // const sellResult = await sellPost(post.AutoID.toString(), window.arweaveWallet, price);
+        const sellResult = await sellPost(post.AutoID.toString(), arProvider.wallet, price);
         if (sellResult === "Post listed for sale successfully.") {
           toast({
             description: "Post listed for sale successfully!!"
@@ -487,7 +493,8 @@ const ViewPosts = () => {
 
         }
       } else {
-        const cancelResult = await cancelSellPost(post.AutoID.toString(), window.arweaveWallet);
+        // const cancelResult = await cancelSellPost(post.AutoID.toString(), window.arweaveWallet);
+        const cancelResult = await cancelSellPost(post.AutoID.toString(), arProvider.wallet);
         if (cancelResult === "Post sale cancelled successfully.") {
           toast({
             description: "Post sale cancelled successfully!"
@@ -513,7 +520,8 @@ const ViewPosts = () => {
     try {
       // Check if the current user is the post owner
       if (arProvider.profile.id === post.PID) {
-        const cancelResult = await cancelSellPost(post.AutoID.toString(), window.arweaveWallet);
+        // const cancelResult = await cancelSellPost(post.AutoID.toString(), window.arweaveWallet);
+        const cancelResult = await cancelSellPost(post.AutoID.toString(), arProvider.wallet);
         if (cancelResult === "Post sale cancelled successfully.") {
           toast({
             description: "Post sale cancelled successfully!"
@@ -521,7 +529,8 @@ const ViewPosts = () => {
 
         }
       } else {
-        const buyResult = await buyPost(post.AutoID.toString(), window.arweaveWallet);
+        // const buyResult = await buyPost(post.AutoID.toString(), window.arweaveWallet);
+        const buyResult = await buyPost(post.AutoID.toString(), arProvider.wallet);
         if (buyResult === "Post purchased successfully.") {
           toast({
             description: "Post purchased successfully!"
@@ -564,7 +573,8 @@ const ViewPosts = () => {
           { name: "PostId", value: post.AutoID.toString() },
         ],
         // data: "",
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("Unlike Post result", result);
@@ -591,7 +601,8 @@ const ViewPosts = () => {
           { name: "PostId", value: post.AutoID.toString() },
         ],
         // data: "",
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("Like Post result", result);
@@ -628,7 +639,7 @@ const ViewPosts = () => {
     try {
     //   await transferAR(api);
     console.log("post author: ", post.AuthorWallet);
-    await transferAR(api, toast, arProvider.profile.walletAddress, post.AuthorWallet); // Pass the toast function
+    // await transferAR(api, toast, arProvider.profile.walletAddress, post.AuthorWallet); // Pass the toast function
 
     } catch (error: any) {
       console.error("Error sending tip:", error);
@@ -650,7 +661,8 @@ const ViewPosts = () => {
           { name: "PostId", value: postId.toString() },
         ],
         // data: "",
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("Delete Post result", result);
@@ -678,16 +690,25 @@ const ViewPosts = () => {
       fetchPosts();
   }, []);
 
-  useEffect(() => {
-    if (connected) {
-      refreshPosts();
+  // useEffect(() => {
+  //   if (connected) {
+  //     refreshPosts();
 
-      // Profile();
-      console.log("refetching posts and user posts");
+  //     // Profile();
+  //     console.log("refetching posts and user posts");
+
+  //   //   console.log("This is the active address: ", activeAddress);
+  //   }
+  // }, [connected, arProvider.profile]);
+
+  useEffect(() => {
+    refreshPosts();
+
+    // Profile();
+    console.log("refetching posts and user posts");
 
     //   console.log("This is the active address: ", activeAddress);
-    }
-  }, [connected, arProvider.profile]);
+  }, [arProvider.profile]);
 
   return (
     <main className="px-4 p-4">
@@ -714,7 +735,16 @@ const ViewPosts = () => {
                 <DialogTrigger className="w-full">
                   <Sidebar title="Create Posts" />
                 </DialogTrigger>
-                {arProvider.profile?.id && arProvider.profile.id !== "" ? (
+                <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create Posts</DialogTitle>
+                      <DialogDescription>Create a new post!</DialogDescription>
+                    </DialogHeader>
+                    <div className="border-2 border-primary/20 rounded-lg p-4 mt-2">
+                    <UploadVideos onUpload={handleVideosUpload} onCancel={() => setIsDialogOpen(false)} />
+                    </div>
+                  </DialogContent>
+                {/* {arProvider.profile?.id && arProvider.profile.id !== "" ? (
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Create Posts</DialogTitle>
@@ -723,23 +753,12 @@ const ViewPosts = () => {
                     <div className="border-2 border-primary/20 rounded-lg p-4 mt-2">
                     <UploadVideos onUpload={handleVideosUpload} onCancel={() => setIsDialogOpen(false)} api={api} />
                     </div>
-                    {/* <DialogFooter> */}
-                      
-                      {/* <Button
-                        type="submit"
-                        onClick={(e) => {
-                          createPosts(e);
-                        }}
-                      >
-                        Save changes
-                      </Button> */}
-                    {/* </DialogFooter> */}
                   </DialogContent>
                 ) : (
                   <DialogContent>
                     <div>No AO Profile yet. Create one to start posting!</div>
                   </DialogContent>
-                )}
+                )} */}
               </Dialog>
             </div>
             <div>
@@ -985,7 +1004,8 @@ const ViewPosts = () => {
                 )}
             </TabsContent>
             <TabsContent value="your-posts">
-              {!connected ? (
+              {/* {!connected ? ( */}
+              {!arProvider.walletAddress ? (
                 <div className="flex justify-center text-3xl font-semibold">
                   Please login/connect first
                 </div>

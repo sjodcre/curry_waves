@@ -1,8 +1,8 @@
 // src/components/Header.tsx
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ConnectButton } from "arweave-wallet-kit";
-import { useArweaveProvider } from "@/context/ProfileContext";
+// import { ConnectButton } from "arweave-wallet-kit";
+import { useArweaveProvider } from "@/context/ArweaveProvider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"; 
+// import OthentLoginButton from "./OthentLoginButton";
+import WalletConnection from "@/wallets/WalletConnect";
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -49,7 +51,12 @@ const Header: React.FC = () => {
             Create Profile
           </Button>
         )}
-        <ConnectButton profileModal={true} showBalance={true} />
+        {/* <ConnectButton profileModal={true} showBalance={true} /> */}
+        {/* <Modal header='Connect Wallet' handleClose={() => setWalletModalVisible(false)}>
+					<WalletList handleConnect={handleConnect} />
+				</Modal> */}
+        {/* <OthentLoginButton /> */}
+        <WalletConnection />
       </div>
 
       {/* Dialog for creating profile */}

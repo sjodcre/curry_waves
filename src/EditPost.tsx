@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { message, createDataItemSigner, result } from "@permaweb/aoconnect";
-import { useArweaveProvider } from "@/context/ProfileContext";
+import { useArweaveProvider } from "@/context/ArweaveProvider";
 import { toast } from "@/components/ui/use-toast";
 import { processId } from "./config/config";
 import { Post } from "./components/ViewPosts";
@@ -57,7 +57,8 @@ const EditPost: React.FC = () => {
             { name: "Action", value: "Get-Post" },
             { name: "Post-Id", value: postId },
           ],
-          signer: createDataItemSigner(window.arweaveWallet),
+          // signer: createDataItemSigner(window.arweaveWallet),
+          signer: createDataItemSigner(arProvider.wallet),
         });
 
         const postResult = await result({
@@ -129,7 +130,8 @@ const EditPost: React.FC = () => {
           ...(videoTxid ? [{ name: "VideoTxId", value: videoTxid }] : []),
         ],
         data: postBody,
-        signer: createDataItemSigner(window.arweaveWallet),
+        // signer: createDataItemSigner(window.arweaveWallet),
+        signer: createDataItemSigner(arProvider.wallet),
       });
 
       console.log("res", res)

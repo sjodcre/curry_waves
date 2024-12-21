@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { message, createDataItemSigner, result } from "@permaweb/aoconnect";
-import { useArweaveProvider } from "@/context/ProfileContext"; // Import your provider
+import { useArweaveProvider } from "@/context/ArweaveProvider"; // Import your provider
 import { toast } from "@/components/ui/use-toast"; // Import toast for notifications
 import { processId } from "./config/config";
 import { Post } from "./components/ViewPosts";
@@ -29,7 +29,8 @@ const [video, setVideo] = useState<string[]>([]); // State to hold video URLs
             { name: "Action", value: "Get-Post" },
             { name: "Post-Id", value: postId },
           ],
-          signer: createDataItemSigner(window.arweaveWallet),
+          // signer: createDataItemSigner(window.arweaveWallet),
+          signer: createDataItemSigner(arProvider.wallet),
         });
 
         const postResult = await result({

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useActiveAddress } from 'arweave-wallet-kit';
-import { useConnection } from 'arweave-wallet-kit';
+// import { useActiveAddress } from 'arweave-wallet-kit';
+// import { useConnection } from 'arweave-wallet-kit';
 // import Arweave from 'arweave';
 import { Button } from './ui/button';
 import { toast } from './ui/use-toast';
 import { TagType } from '@/lib/ProfileUtils';
-import { useArweaveProvider } from '@/context/ProfileContext';
+import { useArweaveProvider } from '@/context/ArweaveProvider';
 import { connect as aoConnect, createDataItemSigner } from '@permaweb/aoconnect';
 import { GATEWAYS, getGQLData } from '@/lib/utils';
 import { Progress } from "@/components/ui/progress";
+// import othent from '@/wallets/Othent';
 
 interface Video {
   id: string;
@@ -45,19 +46,20 @@ export function cleanProcessField(value: string) {
 interface UploadVideosProps {
   onUpload: (videoTxId: string | null, title: string, description: string) => void;
   onCancel: () => void;
-  api: any;
 }
 
 // @ts-ignore
-const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api }) => {
+const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel }) => {
   const [video, setVideo] = useState<Video | null>(null);
-  const { connect: connectWallet } = useConnection();
-  const activeAddress = useActiveAddress();
+  // const { connect: connectWallet } = useConnection();
+  // const activeAddress = useActiveAddress();
+  // const activeAddress = othent.getActiveAddress();
   const arProvider = useArweaveProvider();
   const [postDescription, setPostDescription] = useState("");
   const [postTitle, setPostTitle] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const activeAddress = arProvider.walletAddress;
 
   const hasLargeVideo = video?.size && video.size > 5 * 1024 * 1024; // 5MB in bytes
 
@@ -95,7 +97,10 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
     
     console.log("activeAddress", activeAddress);
     if (!activeAddress) {
-      await connectWallet();
+      // await connectWallet();
+      console.log("no active address when uploading video")
+      return
+      // await arProvider.handleArConnect();
     }
 
     // const arweave = Arweave.init({
@@ -168,7 +173,8 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                         processId = await aos.spawn({
                             module: "Pq2Zftrqut0hdisH_MC2pDOT6S4eQFoxGsFUzR6r350",
                             scheduler: "_GQ33BkPtZrqxA84vM8Zk-N2aO0toNNu_C-l-rawrBA",
-                            signer: createDataItemSigner(window.arweaveWallet),
+                            // signer: createDataItemSigner(window.arweaveWallet),
+                            signer: createDataItemSigner(arProvider.wallet),
                             tags: assetTags,
                             data: buffer,
                         });
@@ -188,11 +194,13 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                     throw new Error("Failed to get valid process ID");
                 }
 
-                setUploadProgress(80);
+                setUploadProgress(80)
                 let fetchedAssetId: string | undefined = undefined;
+                // let fetchedAssetId: string;
                 retryCount = 0;
-                const maxFetchRetries = 100;
+                const maxFetchRetries = 200;
                 while (fetchedAssetId === undefined) {
+                // while (!fetchedAssetId) {
                     await new Promise((r) => setTimeout(r, 2000));
                     const gqlResponse = await getGQLData({
                         gateway: GATEWAYS.goldsky,
@@ -215,11 +223,12 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                         }
                     }
                 }
-
+                console.log("fetching eval message")
                 if (fetchedAssetId) {
                     const evalMessage = await aos.message({
                         process: processId,
-                        signer: createDataItemSigner(window.arweaveWallet),
+                        // signer: createDataItemSigner(window.arweaveWallet),
+                        signer: createDataItemSigner(arProvider.wallet),
                         tags: [{ name: 'Action', value: 'Eval' }],
                         data: processSrc || "",
                     });
@@ -232,7 +241,8 @@ const VideoUploader: React.FC<UploadVideosProps> = ({ onUpload, onCancel, api })
                     if (evalResult) {
                         await aos.message({
                             process: processId,
-                            signer: createDataItemSigner(window.arweaveWallet),
+                            // signer: createDataItemSigner(window.arweaveWallet),
+                            signer: createDataItemSigner(arProvider.wallet),
                             tags: [
                                 { name: 'Action', value: 'Add-Asset-To-Profile' },
                                 { name: 'ProfileProcess', value: arProvider?.profile?.id || "ANON" },
